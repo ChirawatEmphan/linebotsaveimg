@@ -1,0 +1,57 @@
+var ACCESS_TOKEN = 'iY9Pk4bHHI3mP1MMnl4Y7MaiiLe3Z6zWMyw37OESis1pqWVYoDrzdpxDEuQgWNKqIBxakGf0kw9efLM3WMIo/csuip7DAY9YjloOG+4A4x2+lnxM50tj2txDSPLcSA9vasX21y6H3AzkQWJtb+t+LQdB04t89/1O/w1cDnyilFU=';
+
+var FOLDER_ID = '14RVCAhAMc11B6eWY2vI2zSc3wf1mgVTb';
+
+var REPLY_URL = 'https://api.line.me/v2/bot/message/reply';
+
+function sendMsg(url, payload) {
+  UrlFetchApp.fetch(url, {
+    'headers': {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer ' + ACCESS_TOKEN,
+    },
+    'method': 'post',
+    'payload': JSON.stringify(payload),
+  });
+}
+function getImage(id) {
+ 
+  var url = 'https://api-data.line.me/v2/bot/message/' + id + '/content';
+  var data = UrlFetchApp.fetch(url,{
+    'headers': {
+      'Authorization' :  'Bearer ' + ACCESS_TOKEN,
+    },
+    'method': 'get'
+  });
+  
+  var img = data.getBlob().getAs('image/png').setName(Number(new Date()) + '.png');
+  return img;
+}
+function saveImage(blob) {
+  try{
+    var folder = DriveApp.getFolderById(FOLDER_ID);
+    var file = folder.createFile(blob);
+    return file.getUrl();
+  }catch(e){
+    return false;
+  }
+}
+function doPost(e) {
+  var event = JSON.parse(e.postData.contents).events[0];
+  if(event.message.type == 'image') {
+    try {
+      var img = getImage(event.message.id);
+      var url = saveImage(img);
+      sendMsg(REPLY_URL, {
+        'replyToken': event.replyToken,
+        'messages': [{
+          'type': 'text',
+          'text': url ? "บันทึกเรียบร้อยแล้วค่ะ:\n" + url : "ข้อผิดพลาดในการดาวน์โหลด",
+        }]
+      })
+    }catch(e) {
+      Logger.log(e);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({'content': 'post ok'})).setMimeType(ContentService.MimeType.JSON);
+}
